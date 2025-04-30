@@ -1,12 +1,10 @@
-import 'dart:convert';
-
 import 'package:http/http.dart' as http;
 import 'package:mobilep2/api/api_key.dart';
 import 'package:mobilep2/models/finnhub_info.dart';
 
 class RemoteService {
   // TODO have error handling when response isn't collected.
-  Future<CompanyData> getCompanyData({String symbol = "AAPL"}) async {
+  Future<CompanyData?> getCompanyData({String symbol = "AAPL"}) async {
     var client = http.Client();
     var uri = Uri.parse(
       "https://finnhub.io/api/v1/stock/profile2?symbol=$symbol&token=$finnHubApiKey",
@@ -14,12 +12,11 @@ class RemoteService {
     var response = await client.get(uri);
     if (response.statusCode == 200) {
       return companyDataFromJson(response.body);
-    } else {
-      return CompanyData.defaultData;
     }
+    return null;
   }
 
-  Future<List<EarningsSurprisesData>> getSurprisesData({
+  Future<List<EarningsSurprisesData>?> getSurprisesData({
     String symbol = "AAPL",
   }) async {
     var client = http.Client();
@@ -29,12 +26,13 @@ class RemoteService {
     var response = await client.get(uri);
     if (response.statusCode == 200) {
       return earningsSurprisesDataFromJson(response.body);
-    } else {
-      return [EarningsSurprisesData.defaultData];
     }
+    return null;
   }
 
-  Future<EarningsCalendarData> getCalendarData({String symbol = "AAPL"}) async {
+  Future<EarningsCalendarData?> getCalendarData({
+    String symbol = "AAPL",
+  }) async {
     var client = http.Client();
     var uri = Uri.parse(
       "https://finnhub.io/api/v1/calendar/earnings?symbol=$symbol&from=2025-04-01&to=2025-04-28&token=$finnHubApiKey",
@@ -42,9 +40,8 @@ class RemoteService {
     var response = await client.get(uri);
     if (response.statusCode == 200) {
       return earningsCalendarDataFromJson(response.body);
-    } else {
-      return EarningsCalendarData.defaultData;
     }
+    return null;
   }
 
   Future<QuoteData?> getQuoteData({String symbol = "AAPL"}) async {
@@ -56,6 +53,7 @@ class RemoteService {
     if (response.statusCode == 200) {
       return quoteDataFromJson(response.body);
     }
+    return null;
   }
 
   Future<List<NewsData>?> getNewsData({
@@ -65,14 +63,29 @@ class RemoteService {
   }) async {
     to ??= DateTime.now();
     from ??= DateTime.now().subtract(Duration(days: 30));
+    String symbolString = "symbol=$symbol";
+    String toString =
+        "${to.year}-${to.month.toStringAsFormatted()}-${to.day.toStringAsFormatted()}";
+    String fromString =
+        "${from.year}-${from.month.toStringAsFormatted()}-${from.day.toStringAsFormatted()}";
     var client = http.Client();
     var uri = Uri.parse(
-      "https://finnhub.io/api/v1/company-news?symbol=$symbol&from=2025-01-15&to=2025-02-20&token=$finnHubApiKey",
+      "https://finnhub.io/api/v1/company-news?$symbolString&from=$fromString&to=$toString&token=$finnHubApiKey",
     );
     var response = await client.get(uri);
     print(response.body);
     if (response.statusCode == 200) {
       return newsDataFromJson(response.body);
     }
+    return null;
+  }
+}
+
+extension on int {
+  String toStringAsFormatted() {
+    if (this < 10) {
+      return "0$this";
+    }
+    return toString();
   }
 }

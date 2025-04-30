@@ -2,24 +2,24 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:mobilep2/models/finnhub_info.dart';
+import 'package:mobilep2/pages/stock_page.dart' show NewsTile;
 import 'package:mobilep2/services/remote_services.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:collection/collection.dart';
 
-class Charts extends StatefulWidget {
-  const Charts({super.key});
-
+class Chart extends StatefulWidget {
+  const Chart(this.symbol, {super.key});
+  final String symbol;
   @override
-  State<Charts> createState() => _ChartsState();
+  State<Chart> createState() => _ChartState();
 }
 
-class _ChartsState extends State<Charts> {
-  late Future<List<EarningsSurprisesData>> _surpriseData;
-  late Future<CompanyData> _companyData;
+class _ChartState extends State<Chart> {
+  late Future<List<EarningsSurprisesData>?> _surpriseData;
   @override
   void initState() {
     super.initState();
-    _surpriseData = RemoteService().getSurprisesData();
+    _surpriseData = RemoteService().getSurprisesData(symbol: widget.symbol);
   }
 
   @override
@@ -31,18 +31,15 @@ class _ChartsState extends State<Charts> {
           FutureBuilder(
             future: _surpriseData,
             builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.done) {
-                if (snapshot.hasError) {
-                  // TODO implement error handling
-                  print(snapshot.error);
-                  return StockTile();
-                }
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return Center(child: CircularProgressIndicator());
+              } else if (snapshot.hasError) {
+                return ErrorTile(snapshot.error!);
+              } else {
                 List<EarningsSurprisesData> data = snapshot.data!.sorted(
                   (a, b) => a.period.compareTo(b.period),
                 );
                 return EarningsChart(data);
-              } else {
-                return Center(child: CircularProgressIndicator());
               }
             },
           ),
@@ -51,7 +48,6 @@ class _ChartsState extends State<Charts> {
     );
   }
 }
-
 
 class EarningsChart extends StatelessWidget {
   EarningsChart(this.data, {super.key});
@@ -132,8 +128,8 @@ class EarningsChart extends StatelessWidget {
 }
 
 class HomePage extends StatelessWidget {
-  const HomePage({super.key});
-
+  const HomePage({this.symbols = const [], super.key});
+  final List<String> symbols;
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -143,10 +139,10 @@ class HomePage extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text("Watchlist"),
-            StockList(),
+            Text("My Symbols"),
+            StockList(symbols),
             Text("News Feed"),
-            NewsGrid(),
+            NewsList(),
           ],
         ),
       ),
@@ -155,26 +151,38 @@ class HomePage extends StatelessWidget {
 }
 
 class StockList extends StatelessWidget {
-  const StockList({super.key});
-
+  const StockList(this.symbols, {super.key});
+  final List<String> symbols;
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 200,
-      child: ListView.separated(
-        itemCount: 4,
-        shrinkWrap: true,
-        scrollDirection: Axis.horizontal,
-        itemBuilder: (context, index) => StockTile(),
-        separatorBuilder: (context, index) => SizedBox(width: 10),
-      ),
-    );
+    if (symbols.isEmpty) {
+      return Text(
+        "You have no symbols saved in your watchlist. Search symbols using the search bar!",
+      );
+    } else {
+      return SizedBox(
+        height: 200,
+        child: ListView.separated(
+          itemCount: min(4, symbols.length),
+          shrinkWrap: true,
+          scrollDirection: Axis.horizontal,
+          itemBuilder: (context, index) {
+            if (index == min(4, symbols.length) - 1) {
+              return EndingTile();
+            } else {
+              return StockTile(symbols[index]);
+            }
+          },
+          separatorBuilder: (context, index) => SizedBox(width: 10),
+        ),
+      );
+    }
   }
 }
 
 class StockTile extends StatelessWidget {
-  const StockTile({super.key});
-
+  const StockTile(this.symbol, {super.key});
+  final String symbol;
   @override
   Widget build(BuildContext context) {
     return ClipRRect(
@@ -183,29 +191,103 @@ class StockTile extends StatelessWidget {
         aspectRatio: 1,
         child: Container(
           color: Colors.indigo[400],
-          child: Text("This is default text"),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              Positioned(
+                child: Container(
+                  alignment: Alignment.topCenter,
+                  child: Text(symbol),
+                ),
+              ),
+              Chart(symbol),
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
-class NewsGrid extends StatelessWidget {
-  const NewsGrid({super.key});
+class NewsList extends StatefulWidget {
+  const NewsList({super.key, this.filters});
+  final List<String>? filters;
+
+  @override
+  State<NewsList> createState() => _NewsListState();
+}
+
+class _NewsListState extends State<NewsList> {
+  late Future<List<NewsData>?> newsData;
+  // TODO: implement FILTERS
+  @override
+  void initState() {
+    super.initState();
+    newsData = RemoteService().getNewsData();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: NeverScrollableScrollPhysics(),
-      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        childAspectRatio: 1,
-        mainAxisSpacing: 4,
-        crossAxisSpacing: 4,
-      ),
-      itemCount: 16,
-      itemBuilder: (context, index) => StockTile(),
+    return FutureBuilder(
+      future: newsData,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return CircularProgressIndicator();
+        } else if (snapshot.hasError) {
+          return ErrorTile(snapshot.error!);
+        } else {
+          return ListView.builder(
+            shrinkWrap: true,
+            physics: NeverScrollableScrollPhysics(),
+            itemCount: max((snapshot.data as List<NewsData>).length, 20),
+            itemBuilder:
+                (context, index) =>
+                    NewsTile((snapshot.data as List<NewsData>)[index]),
+          );
+        }
+      },
     );
+  }
+}
+
+class ErrorTile extends StatelessWidget {
+  const ErrorTile(this.error, {super.key});
+  final Object error;
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(10),
+      child: AspectRatio(
+        aspectRatio: 1,
+        child: Container(color: Colors.red[400], child: Text(error.toString())),
+      ),
+    );
+  }
+}
+
+class EndingTile extends StatelessWidget {
+  const EndingTile({super.key});
+  // TODO change to watchlist
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => HomePage()),
+        );
+      },
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(10),
+        child: AspectRatio(
+          aspectRatio: 1,
+          child: Container(
+            color: Colors.blue[400],
+            child: Text("See more in your watchlist!"),
+          ),
+        ),
+      ),
+    );
+    ;
   }
 }

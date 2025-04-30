@@ -1,8 +1,8 @@
 import 'dart:math';
 
 import 'package:flutter/material.dart';
-import 'package:mobilep2/models/finnhub_info.dart';
-import 'package:mobilep2/pages/home_page.dart';
+import 'package:mobilep2/pages/home_page.dart' show Chart, ErrorTile, StockTile;
+import 'package:mobilep2/models/finnhub_info.dart' show CompanyData, NewsData;
 import 'package:mobilep2/services/remote_services.dart';
 
 class StockPage extends StatefulWidget {
@@ -14,14 +14,14 @@ class StockPage extends StatefulWidget {
 }
 
 class _StockPageState extends State<StockPage> {
-  late final Future<CompanyData> _companyData;
+  late final Future<CompanyData?> _companyData;
   late final Future<List<NewsData>?> _newsData;
   @override
   void initState() {
     // TODO: implement symbol
     super.initState();
-    _companyData = RemoteService().getCompanyData();
-    _newsData = RemoteService().getNewsData();
+    _companyData = RemoteService().getCompanyData(symbol: widget.symbol);
+    _newsData = RemoteService().getNewsData(symbol: widget.symbol);
   }
 
   @override
@@ -37,7 +37,7 @@ class _StockPageState extends State<StockPage> {
         } else if (snapshot.hasError) {
           return Scaffold(
             appBar: AppBar(title: Text("Error")),
-            body: Center(child: Text("Error: ${snapshot.error}")),
+            body: ErrorTile(snapshot.error!),
           );
         } else {
           return Scaffold(
@@ -75,7 +75,7 @@ class CompanyLayout extends StatelessWidget {
       child: Column(
         children: [
           Text("Charts"),
-          ChartGrid(),
+          ChartGrid(companyData.ticker),
           Text("Info"),
           ...infoList,
           Text("News"),
@@ -87,11 +87,11 @@ class CompanyLayout extends StatelessWidget {
 }
 
 class ChartGrid extends StatelessWidget {
-  const ChartGrid({super.key});
-
+  const ChartGrid(this.symbol, {super.key});
+  final String symbol;
   @override
   Widget build(BuildContext context) {
-    return GridView.builder(
+    return GridView(
       shrinkWrap: true,
       physics: NeverScrollableScrollPhysics(),
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
@@ -100,30 +100,44 @@ class ChartGrid extends StatelessWidget {
         mainAxisSpacing: 4,
         crossAxisSpacing: 4,
       ),
-      itemCount: 4,
-      itemBuilder: (context, index) => StockTile(),
+      children: [Chart(symbol)],
     );
   }
 }
 
 class NewsList extends StatelessWidget {
-  const NewsList(this.data, {super.key});
-  final List<NewsData> data;
+  const NewsList(this.newsInfoList, {super.key});
+  final List<NewsData> newsInfoList;
   @override
   Widget build(BuildContext context) {
     return ListView.builder(
       shrinkWrap: true,
       physics: NeverScrollableScrollPhysics(),
-      itemCount: min(data.length, 10),
-      itemBuilder:
-          (context, index) => Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Container(
-              height: 30,
-              color: Colors.blue,
-              child: Text(data[index].headline),
-            ),
-          ),
+      itemCount: min(newsInfoList.length, 10),
+      itemBuilder: (context, index) => NewsTile(newsInfoList[index]),
+    );
+  }
+}
+
+class NewsTile extends StatelessWidget {
+  const NewsTile(this.newsInfo, {super.key});
+  final NewsData newsInfo;
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(8.0),
+      child: Container(
+        height: 90,
+        color: Colors.blue,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (newsInfo.image != "")
+              Flexible(flex: 2, child: Image.network(newsInfo.image)),
+            Flexible(flex: 5, child: Text(newsInfo.headline)),
+          ],
+        ),
+      ),
     );
   }
 }
