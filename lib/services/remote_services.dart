@@ -47,7 +47,7 @@ class RemoteService {
     }
   }
 
-  Future<QuoteData> getQuoteData({String symbol = "AAPL"}) async {
+  Future<QuoteData?> getQuoteData({String symbol = "AAPL"}) async {
     var client = http.Client();
     var uri = Uri.parse(
       "https://finnhub.io/api/v1/quote?symbol=$symbol&token=$finnHubApiKey",
@@ -55,8 +55,24 @@ class RemoteService {
     var response = await client.get(uri);
     if (response.statusCode == 200) {
       return quoteDataFromJson(response.body);
-    } else {
-      return QuoteData.defaultData;
+    }
+  }
+
+  Future<List<NewsData>?> getNewsData({
+    String symbol = "AAPL",
+    DateTime? from,
+    DateTime? to,
+  }) async {
+    to ??= DateTime.now();
+    from ??= DateTime.now().subtract(Duration(days: 30));
+    var client = http.Client();
+    var uri = Uri.parse(
+      "https://finnhub.io/api/v1/company-news?symbol=$symbol&from=2025-01-15&to=2025-02-20&token=$finnHubApiKey",
+    );
+    var response = await client.get(uri);
+    print(response.body);
+    if (response.statusCode == 200) {
+      return newsDataFromJson(response.body);
     }
   }
 }
