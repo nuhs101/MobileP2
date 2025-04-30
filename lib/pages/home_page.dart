@@ -3,129 +3,10 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:mobilep2/models/finnhub_info.dart';
 import 'package:mobilep2/pages/stock_page.dart' show NewsTile;
+import 'package:mobilep2/pages/watchlist_page.dart' show WatchlistScreen;
 import 'package:mobilep2/services/remote_services.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:collection/collection.dart';
-
-class Chart extends StatefulWidget {
-  const Chart(this.symbol, {super.key});
-  final String symbol;
-  @override
-  State<Chart> createState() => _ChartState();
-}
-
-class _ChartState extends State<Chart> {
-  late Future<List<EarningsSurprisesData>?> _surpriseData;
-  @override
-  void initState() {
-    super.initState();
-    _surpriseData = RemoteService().getSurprisesData(symbol: widget.symbol);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(),
-      body: Column(
-        children: [
-          FutureBuilder(
-            future: _surpriseData,
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return Center(child: CircularProgressIndicator());
-              } else if (snapshot.hasError) {
-                return ErrorTile(snapshot.error!);
-              } else {
-                List<EarningsSurprisesData> data = snapshot.data!.sorted(
-                  (a, b) => a.period.compareTo(b.period),
-                );
-                return EarningsChart(data);
-              }
-            },
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class EarningsChart extends StatelessWidget {
-  EarningsChart(this.data, {super.key});
-  final List<EarningsSurprisesData> data;
-  late final List<FlSpot> points =
-      data
-          .mapIndexed(
-            (index, earnings) => FlSpot(index.toDouble(), earnings.actual),
-          )
-          .toList();
-
-  late final double verticalChartPadding =
-      (points.map((point) => point.y).reduce(max) -
-          points.map((point) => point.y).reduce(min)) *
-      0.1;
-
-  late final double minX = points.map((point) => point.x).reduce(min);
-  late final double maxX = points.map((point) => point.x).reduce(max);
-  late final double minY =
-      points.map((point) => point.y).reduce(min) - verticalChartPadding;
-  late final double maxY =
-      points.map((point) => point.y).reduce(max) + verticalChartPadding;
-
-  late final FlTitlesData titlesData = FlTitlesData(
-    bottomTitles: AxisTitles(
-      axisNameWidget: Text("Quarter"),
-      sideTitles: SideTitles(
-        showTitles: true,
-        reservedSize: 32,
-        interval: 1,
-        getTitlesWidget: bottomTitleWidgets,
-      ),
-    ),
-    leftTitles: AxisTitles(
-      axisNameWidget: Text("Actual Earnings"),
-      sideTitles: SideTitles(
-        showTitles: true,
-        reservedSize: 30,
-        interval: 0.37,
-        getTitlesWidget: leftTitleWidgets,
-        minIncluded: false,
-        maxIncluded: false,
-      ),
-    ),
-    rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-    topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-  );
-
-  Text leftTitleWidgets(double value, TitleMeta meta) {
-    const style = TextStyle(fontWeight: FontWeight.bold, fontSize: 14);
-    String text = meta.formattedValue;
-    return Text(text, style: style, textAlign: TextAlign.left);
-  }
-
-  Text bottomTitleWidgets(double index, TitleMeta meta) {
-    const style = TextStyle(fontWeight: FontWeight.bold, fontSize: 16);
-    return Text(data[index.toInt()].quarter.toString(), style: style);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AspectRatio(
-      aspectRatio: 1,
-      child: LineChart(
-        LineChartData(
-          titlesData: titlesData,
-          gridData: FlGridData(show: false),
-          lineBarsData: [LineChartBarData(spots: points)],
-          lineTouchData: LineTouchData(enabled: false),
-          minX: minX,
-          maxX: maxX,
-          maxY: maxY,
-          minY: minY,
-        ),
-      ),
-    );
-  }
-}
 
 class HomePage extends StatelessWidget {
   const HomePage({this.symbols = const [], super.key});
@@ -267,14 +148,13 @@ class ErrorTile extends StatelessWidget {
 
 class EndingTile extends StatelessWidget {
   const EndingTile({super.key});
-  // TODO change to watchlist
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () {
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (context) => HomePage()),
+          MaterialPageRoute(builder: (context) => WatchlistScreen()),
         );
       },
       child: ClipRRect(
@@ -289,5 +169,125 @@ class EndingTile extends StatelessWidget {
       ),
     );
     ;
+  }
+}
+
+class Chart extends StatefulWidget {
+  const Chart(this.symbol, {super.key});
+  final String symbol;
+  @override
+  State<Chart> createState() => _ChartState();
+}
+
+class _ChartState extends State<Chart> {
+  late Future<List<EarningsSurprisesData>?> _surpriseData;
+  @override
+  void initState() {
+    super.initState();
+    _surpriseData = RemoteService().getSurprisesData(symbol: widget.symbol);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(),
+      body: Column(
+        children: [
+          FutureBuilder(
+            future: _surpriseData,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return Center(child: CircularProgressIndicator());
+              } else if (snapshot.hasError) {
+                return ErrorTile(snapshot.error!);
+              } else {
+                List<EarningsSurprisesData> data = snapshot.data!.sorted(
+                  (a, b) => a.period.compareTo(b.period),
+                );
+                return EarningsChart(data);
+              }
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class EarningsChart extends StatelessWidget {
+  EarningsChart(this.data, {super.key});
+  final List<EarningsSurprisesData> data;
+  late final List<FlSpot> points =
+      data
+          .mapIndexed(
+            (index, earnings) => FlSpot(index.toDouble(), earnings.actual),
+          )
+          .toList();
+
+  late final double verticalChartPadding =
+      (points.map((point) => point.y).reduce(max) -
+          points.map((point) => point.y).reduce(min)) *
+      0.1;
+
+  late final double minX = points.map((point) => point.x).reduce(min);
+  late final double maxX = points.map((point) => point.x).reduce(max);
+  late final double minY =
+      points.map((point) => point.y).reduce(min) - verticalChartPadding;
+  late final double maxY =
+      points.map((point) => point.y).reduce(max) + verticalChartPadding;
+
+  late final FlTitlesData titlesData = FlTitlesData(
+    bottomTitles: AxisTitles(
+      axisNameWidget: Text("Quarter"),
+      sideTitles: SideTitles(
+        showTitles: true,
+        reservedSize: 32,
+        interval: 1,
+        getTitlesWidget: bottomTitleWidgets,
+      ),
+    ),
+    leftTitles: AxisTitles(
+      axisNameWidget: Text("Actual Earnings"),
+      sideTitles: SideTitles(
+        showTitles: true,
+        reservedSize: 30,
+        interval: 0.37,
+        getTitlesWidget: leftTitleWidgets,
+        minIncluded: false,
+        maxIncluded: false,
+      ),
+    ),
+    rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+    topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+  );
+
+  Text leftTitleWidgets(double value, TitleMeta meta) {
+    const style = TextStyle(fontWeight: FontWeight.bold, fontSize: 14);
+    String text = meta.formattedValue;
+    return Text(text, style: style, textAlign: TextAlign.left);
+  }
+
+  Text bottomTitleWidgets(double index, TitleMeta meta) {
+    const style = TextStyle(fontWeight: FontWeight.bold, fontSize: 16);
+    return Text(data[index.toInt()].quarter.toString(), style: style);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AspectRatio(
+      aspectRatio: 1,
+      child: LineChart(
+        LineChartData(
+          titlesData: titlesData,
+          gridData: FlGridData(show: false),
+          lineBarsData: [LineChartBarData(spots: points)],
+          lineTouchData: LineTouchData(enabled: false),
+          minX: minX,
+          maxX: maxX,
+          maxY: maxY,
+          minY: minY,
+        ),
+      ),
+    );
   }
 }
