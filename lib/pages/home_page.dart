@@ -168,7 +168,6 @@ class EndingTile extends StatelessWidget {
         ),
       ),
     );
-    ;
   }
 }
 

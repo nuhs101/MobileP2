@@ -1,7 +1,7 @@
 import 'dart:math';
 
 import 'package:flutter/material.dart';
-import 'package:mobilep2/pages/home_page.dart' show Chart, ErrorTile, StockTile;
+import 'package:mobilep2/pages/home_page.dart' show Chart, ErrorTile;
 import 'package:mobilep2/models/finnhub_info.dart' show CompanyData, NewsData;
 import 'package:mobilep2/services/remote_services.dart';
 
