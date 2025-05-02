@@ -39,7 +39,9 @@ class _StockPageState extends State<StockPage> {
             appBar: AppBar(title: Text("Error")),
             body: ErrorTile(snapshot.error!),
           );
-        } else if (!snapshot.hasData || snapshot.data![0] == null || snapshot.data![1] == null) {
+        } else if (!snapshot.hasData ||
+            snapshot.data![0] == null ||
+            snapshot.data![1] == null) {
           return Scaffold(
             appBar: AppBar(title: Text("No company found ")),
             body: Text("No company found."),

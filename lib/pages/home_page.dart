@@ -266,6 +266,14 @@ class _SearchableSymbolListState extends State<SearchableSymbolList> {
                       icon: const Icon(Icons.add_circle_outline),
                       onPressed: () => addToWatchlist(result.symbol),
                     ),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => StockPage(result.symbol),
+                        ),
+                      );
+                    },
                   );
                 },
               ),
