@@ -2,7 +2,7 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:mobilep2/models/finnhub_info.dart';
-import 'package:mobilep2/pages/stock_page.dart' show NewsTile;
+import 'package:mobilep2/pages/stock_page.dart' show NewsTile, StockPage;
 import 'package:mobilep2/pages/watchlist_page.dart' show WatchlistScreen;
 import 'package:mobilep2/services/remote_services.dart';
 import 'package:fl_chart/fl_chart.dart';
@@ -266,15 +266,6 @@ class _SearchableSymbolListState extends State<SearchableSymbolList> {
                       icon: const Icon(Icons.add_circle_outline),
                       onPressed: () => addToWatchlist(result.symbol),
                     ),
-                    //onTap: () {
-                    // Navigator.push(
-                    // context,
-                    //  MaterialPageRoute(
-                    //  builder:
-                    //     (context) => StockPage(symbol: result.symbol),
-                    //  ),
-                    // );
-                    //  },
                   );
                 },
               ),
@@ -302,16 +293,20 @@ class StockList extends StatelessWidget {
         "You have no symbols saved in your watchlist. Search symbols using the search bar!",
       );
     } else {
+      var maxCount = min(4, symbols.length);
       return SizedBox(
         height: 200,
         child: ListView.separated(
-          itemCount: min(4, symbols.length),
+          itemCount: maxCount,
           shrinkWrap: true,
           scrollDirection: Axis.horizontal,
           itemBuilder: (context, index) {
-            if (index == min(4, symbols.length) - 1) {
+            if (index == maxCount - 1) {
               return EndingTile();
             } else {
+              print(symbols);
+              print(index);
+              print(symbols[index]);
               return StockTile(symbols[index]);
             }
           },
@@ -327,23 +322,31 @@ class StockTile extends StatelessWidget {
   final String symbol;
   @override
   Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(10),
-      child: AspectRatio(
-        aspectRatio: 1,
-        child: Container(
-          color: Colors.indigo[400],
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              Positioned(
-                child: Container(
-                  alignment: Alignment.topCenter,
-                  child: Text(symbol),
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => StockPage(symbol)),
+        );
+      },
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(10),
+        child: AspectRatio(
+          aspectRatio: 1,
+          child: Container(
+            color: Colors.indigo[400],
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                Positioned(
+                  child: Container(
+                    alignment: Alignment.topCenter,
+                    child: Text(symbol),
+                  ),
                 ),
-              ),
-              Chart(symbol),
-            ],
+                Chart(symbol),
+              ],
+            ),
           ),
         ),
       ),
@@ -377,6 +380,8 @@ class _NewsListState extends State<NewsList> {
           return CircularProgressIndicator();
         } else if (snapshot.hasError) {
           return ErrorTile(snapshot.error!);
+        } else if (!snapshot.hasData) {
+          return ErrorTile("No data found?");
         } else {
           return ListView.builder(
             shrinkWrap: true,
@@ -451,24 +456,22 @@ class _ChartState extends State<Chart> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(),
-      body: Column(
-        children: [
-          FutureBuilder(
-            future: _surpriseData,
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return Center(child: CircularProgressIndicator());
-              } else if (snapshot.hasError) {
-                return ErrorTile(snapshot.error!);
-              } else {
-                List<EarningsSurprisesData> data = snapshot.data!.sorted(
-                  (a, b) => a.period.compareTo(b.period),
-                );
-                return EarningsChart(data);
-              }
-            },
-          ),
-        ],
+      body: FutureBuilder(
+        future: _surpriseData,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return Center(child: CircularProgressIndicator());
+          } else if (snapshot.hasError) {
+            return ErrorTile(snapshot.error!);
+          } else if (!snapshot.hasData) {
+            return ErrorTile("No data for symbol: ${widget.symbol}");
+          } else {
+            List<EarningsSurprisesData> data = snapshot.data!.sorted(
+              (a, b) => a.period.compareTo(b.period),
+            );
+            return EarningsChart(data);
+          }
+        },
       ),
     );
   }
@@ -534,19 +537,16 @@ class EarningsChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AspectRatio(
-      aspectRatio: 1,
-      child: LineChart(
-        LineChartData(
-          titlesData: titlesData,
-          gridData: FlGridData(show: false),
-          lineBarsData: [LineChartBarData(spots: points)],
-          lineTouchData: LineTouchData(enabled: false),
-          minX: minX,
-          maxX: maxX,
-          maxY: maxY,
-          minY: minY,
-        ),
+    return LineChart(
+      LineChartData(
+        titlesData: titlesData,
+        gridData: FlGridData(show: false),
+        lineBarsData: [LineChartBarData(spots: points)],
+        lineTouchData: LineTouchData(enabled: false),
+        minX: minX,
+        maxX: maxX,
+        maxY: maxY,
+        minY: minY,
       ),
     );
   }

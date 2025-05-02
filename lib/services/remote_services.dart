@@ -75,7 +75,6 @@ class RemoteService {
       "https://finnhub.io/api/v1/company-news?$symbolString&from=$fromString&to=$toString&token=$finnHubApiKey",
     );
     var response = await client.get(uri);
-    print(response.body);
     if (response.statusCode == 200) {
       return newsDataFromJson(response.body);
     }
