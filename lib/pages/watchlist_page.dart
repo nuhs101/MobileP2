@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mobilep2/pages/stock_page.dart';
 import 'package:mobilep2/services/watchlist_service.dart';
 
 class WatchlistScreen extends StatefulWidget {
@@ -43,6 +44,12 @@ class _WatchlistScreenState extends State<WatchlistScreen> {
               icon: const Icon(Icons.delete),
               onPressed: () => removeStock(stock),
             ),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => StockPage(stock)),
+              );
+            },
           );
         },
       ),
