@@ -11,6 +11,7 @@ import 'package:collection/collection.dart';
 class HomePage extends StatelessWidget {
   const HomePage({this.symbols = const [], super.key});
   final List<String> symbols;
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -20,12 +21,133 @@ class HomePage extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
+            SearchableSymbolList(symbols: symbols),
             Text("My Symbols"),
             StockList(symbols),
             Text("News Feed"),
             NewsList(),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class SearchableSymbolList extends StatefulWidget {
+  const SearchableSymbolList({super.key, required this.symbols});
+  final List<String> symbols;
+
+  @override
+  State<SearchableSymbolList> createState() => _SearchableSymbolListState();
+}
+
+class _SearchableSymbolListState extends State<SearchableSymbolList> {
+  late TextEditingController searchController;
+  List<SymbolSearchResult> searchResults = [];
+  bool isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    searchController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    searchController.dispose();
+    super.dispose();
+  }
+
+  Future<void> searchSymbols(String query) async {
+    if (query.isEmpty) {
+      setState(() {
+        searchResults = [];
+        isLoading = false;
+      });
+      return;
+    }
+
+    setState(() {
+      isLoading = true;
+    });
+
+    try {
+      final results = await RemoteService().searchSymbols(query);
+      setState(() {
+        searchResults = results;
+        isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        searchResults = [];
+        isLoading = false;
+      });
+      print('Error searching symbols: $e');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(8.0),
+      child: Column(
+        children: [
+          TextField(
+            controller: searchController,
+            decoration: InputDecoration(
+              hintText: "Search stocks...",
+              suffixIcon: IconButton(
+                icon: const Icon(Icons.clear),
+                onPressed: () {
+                  searchController.clear();
+                  searchSymbols("");
+                },
+              ),
+              prefixIcon: Icon(Icons.search),
+            ),
+            onChanged: (query) {
+              searchSymbols(query);
+            },
+          ),
+          const SizedBox(height: 10),
+          if (isLoading)
+            CircularProgressIndicator()
+          else if (searchResults.isNotEmpty)
+            Container(
+              height: 200,
+              decoration: BoxDecoration(
+                border: Border.all(color: Colors.grey.shade300),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: ListView.builder(
+                itemCount: searchResults.length,
+                itemBuilder: (context, index) {
+                  final result = searchResults[index];
+                  return ListTile(
+                    title: Text('${result.symbol} - ${result.description}'),
+                    subtitle: Text(result.type),
+                    //onTap: () {
+                    // Navigator.push(
+                    // context,
+                    //  MaterialPageRoute(
+                    //  builder:
+                    //     (context) => StockPage(symbol: result.symbol),
+                    //  ),
+                    // );
+                    //  },
+                  );
+                },
+              ),
+            )
+          else if (searchController.text.isNotEmpty)
+            Text("No results found"),
+          const SizedBox(height: 10),
+          Text(
+            "My Watchlist",
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          ),
+          StockList(widget.symbols),
+        ],
       ),
     );
   }

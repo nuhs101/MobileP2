@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:http/http.dart' as http;
 import 'package:mobilep2/api/api_key.dart';
 import 'package:mobilep2/models/finnhub_info.dart';
@@ -79,6 +81,23 @@ class RemoteService {
     }
     return null;
   }
+
+  Future<List<SymbolSearchResult>> searchSymbols(String query) async {
+    if (query.isEmpty) return [];
+
+    var client = http.Client();
+    var uri = Uri.parse(
+      "https://finnhub.io/api/v1/search?q=$query&token=$finnHubApiKey",
+    );
+
+    var response = await client.get(uri);
+    if (response.statusCode == 200) {
+      Map<String, dynamic> data = json.decode(response.body);
+      List<dynamic> results = data['result'] ?? [];
+      return results.map((item) => SymbolSearchResult.fromJson(item)).toList();
+    }
+    return [];
+  }
 }
 
 extension on int {
@@ -87,5 +106,28 @@ extension on int {
       return "0$this";
     }
     return toString();
+  }
+}
+
+class SymbolSearchResult {
+  final String description;
+  final String displaySymbol;
+  final String symbol;
+  final String type;
+
+  SymbolSearchResult({
+    required this.description,
+    required this.displaySymbol,
+    required this.symbol,
+    required this.type,
+  });
+
+  factory SymbolSearchResult.fromJson(Map<String, dynamic> json) {
+    return SymbolSearchResult(
+      description: json['description'] ?? '',
+      displaySymbol: json['displaySymbol'] ?? '',
+      symbol: json['symbol'] ?? '',
+      type: json['type'] ?? '',
+    );
   }
 }
