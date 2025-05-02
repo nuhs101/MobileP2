@@ -7,6 +7,7 @@ import 'package:mobilep2/pages/watchlist_page.dart' show WatchlistScreen;
 import 'package:mobilep2/services/remote_services.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:collection/collection.dart';
+import 'package:mobilep2/services/watchlist_service.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({this.symbols = const [], super.key});
@@ -15,15 +16,44 @@ class HomePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(),
+      appBar: AppBar(
+        title: Text('Home'),
+        actions: [
+          IconButton(
+            icon: Icon(Icons.list_alt),
+            tooltip: 'Go to Watchlist',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => WatchlistScreen()),
+              );
+            },
+          ),
+        ],
+      ),
       body: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            SearchableSymbolList(symbols: symbols),
-            Text("My Symbols"),
-            StockList(symbols),
+            WatchlistProvider(
+              child: Builder(
+                builder: (context) {
+                  final watchlistProvider = WatchlistProvider.of(context);
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      SearchableSymbolList(
+                        symbols: watchlistProvider.symbols,
+                        onWatchlistUpdated: watchlistProvider.refreshWatchlist,
+                      ),
+                      Text("My Symbols"),
+                      StockList(watchlistProvider.symbols),
+                    ],
+                  );
+                },
+              ),
+            ),
             Text("News Feed"),
             NewsList(),
           ],
@@ -33,9 +63,95 @@ class HomePage extends StatelessWidget {
   }
 }
 
-class SearchableSymbolList extends StatefulWidget {
-  const SearchableSymbolList({super.key, required this.symbols});
+class WatchlistData {
   final List<String> symbols;
+  final bool isLoading;
+  final Function() refreshWatchlist;
+
+  WatchlistData({
+    required this.symbols,
+    required this.isLoading,
+    required this.refreshWatchlist,
+  });
+}
+
+class WatchlistProvider extends StatefulWidget {
+  final Widget child;
+
+  const WatchlistProvider({super.key, required this.child});
+
+  static WatchlistData of(BuildContext context) {
+    final provider =
+        context.dependOnInheritedWidgetOfExactType<_WatchlistInherited>();
+    if (provider == null) {
+      throw FlutterError('WatchlistProvider not found in context');
+    }
+
+    return WatchlistData(
+      symbols: provider.data.symbols,
+      isLoading: provider.data.isLoading,
+      refreshWatchlist: provider.data.refreshWatchlist,
+    );
+  }
+
+  @override
+  State<WatchlistProvider> createState() => _WatchlistProviderState();
+}
+
+class _WatchlistProviderState extends State<WatchlistProvider> {
+  List<String> symbols = [];
+  bool isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    refreshWatchlist();
+  }
+
+  Future<void> refreshWatchlist() async {
+    setState(() {
+      isLoading = true;
+    });
+    try {
+      final watchlist = await WatchlistService().getWatchlist();
+      setState(() {
+        symbols = watchlist;
+        isLoading = false;
+      });
+    } catch (e) {
+      print('Error loading watchlist: $e');
+      setState(() {
+        isLoading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return _WatchlistInherited(data: this, child: widget.child);
+  }
+}
+
+class _WatchlistInherited extends InheritedWidget {
+  final _WatchlistProviderState data;
+
+  const _WatchlistInherited({required this.data, required super.child});
+
+  @override
+  bool updateShouldNotify(_WatchlistInherited oldWidget) {
+    return true;
+  }
+}
+
+class SearchableSymbolList extends StatefulWidget {
+  const SearchableSymbolList({
+    super.key,
+    required this.symbols,
+    required this.onWatchlistUpdated,
+  });
+
+  final List<String> symbols;
+  final Function() onWatchlistUpdated;
 
   @override
   State<SearchableSymbolList> createState() => _SearchableSymbolListState();
@@ -86,6 +202,26 @@ class _SearchableSymbolListState extends State<SearchableSymbolList> {
     }
   }
 
+  Future<void> addToWatchlist(String symbol) async {
+    try {
+      await WatchlistService().addToWatchlist(symbol);
+      if (!mounted) return;
+      {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('$symbol added to watchlist')));
+
+        widget.onWatchlistUpdated();
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to add $symbol: ${e.toString()}')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -126,6 +262,10 @@ class _SearchableSymbolListState extends State<SearchableSymbolList> {
                   return ListTile(
                     title: Text('${result.symbol} - ${result.description}'),
                     subtitle: Text(result.type),
+                    trailing: IconButton(
+                      icon: const Icon(Icons.add_circle_outline),
+                      onPressed: () => addToWatchlist(result.symbol),
+                    ),
                     //onTap: () {
                     // Navigator.push(
                     // context,
@@ -146,7 +286,6 @@ class _SearchableSymbolListState extends State<SearchableSymbolList> {
             "My Watchlist",
             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
           ),
-          StockList(widget.symbols),
         ],
       ),
     );
